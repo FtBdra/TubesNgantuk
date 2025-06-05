@@ -157,42 +157,6 @@ algoritma
     return hasil
 endfunction
 
-// Note: stringMengandung tidak digunakan langsung di program Go utama saat ini.
-function stringMengandung(in s : string, in sub : string) : boolean
-{ Mengembalikan TRUE jika s mengandung sub (case-insensitive), FALSE jika tidak }
-kamus
-    s_kecil, sub_kecil : string
-    i, j : integer
-    cocok : boolean
-algoritma
-    s_kecil <- ubah_ke_huruf_kecil(s)
-    sub_kecil <- ubah_ke_huruf_kecil(sub)
-
-    if panjang(sub_kecil) == 0 then
-        return TRUE
-    endif
-    if panjang(s_kecil) < panjang(sub_kecil) then
-        return FALSE
-    endif
-
-    i <- 0
-    while i <= panjang(s_kecil) - panjang(sub_kecil) do
-        cocok <- TRUE
-        j <- 0
-        while j < panjang(sub_kecil) do
-            if s_kecil[i+j] TIDAK SAMA DENGAN sub_kecil[j] then
-                cocok <- FALSE
-            endif
-            j <- j + 1
-        endwhile
-        if cocok then
-            return TRUE
-        endif
-        i <- i + 1
-    endwhile
-    return FALSE
-endfunction
-
 function findAktivitasIndexByID(in id_cari : integer) : integer
 { Mengembalikan indeks Aktivitas dengan ID = id_cari, atau -1 jika tidak ditemukan }
 kamus
