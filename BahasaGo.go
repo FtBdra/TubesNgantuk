@@ -4,14 +4,15 @@ import "fmt"
 
 // --- Tipe Bentukan (Struct) ---
 type Aktivitas struct {
-	ID int
-	Kategori string
-	Deskripsi string
+	ID           int
+	Kategori     string
+	Deskripsi    string
 	DampakKarbon float64
-	Frekuensi int
+	Frekuensi    int
 }
 
 const MAX_AKTIVITAS = 100
+
 var daftarAktivitas [MAX_AKTIVITAS]Aktivitas
 var jumlahAktivitas int
 
@@ -43,13 +44,13 @@ func findAktivitasIndexByID(id int) int {
 func tambahAktivitas(id int, kategori, deskripsi string, dampak float64, frekuensi int) {
 	if jumlahAktivitas >= MAX_AKTIVITAS {
 		fmt.Println("Maaf, kapasitas aktivitas sudah penuh (maksimal 100).")
-		return
+
 	}
 
 	for i := 0; i < jumlahAktivitas; i++ {
 		if daftarAktivitas[i].ID == id {
 			fmt.Println("Gagal menambahkan: ID sudah ada. Gunakan ID lain atau edit aktivitas yang sudah ada.")
-			return
+
 		}
 	}
 
@@ -110,7 +111,7 @@ func cariBinary(kategoriCari string) []int {
 
 		if currentKategoriLower == kategoriCariLower {
 			firstOccurenceIndex = mid // Potensi indeks pertama
-			high = mid - 1             // Coba cari lagi di sisi kiri untuk yang paling awal
+			high = mid - 1            // Coba cari lagi di sisi kiri untuk yang paling awal
 		} else if currentKategoriLower < kategoriCariLower {
 			low = mid + 1
 		} else {
@@ -207,7 +208,7 @@ func tampilkanDaftar() {
 	fmt.Println("\n--- Daftar Aktivitas ---")
 	if jumlahAktivitas == 0 {
 		fmt.Println("Belum ada aktivitas yang ditambahkan.")
-		return
+
 	}
 	fmt.Printf("%-5s | %-15s | %-20s | %-10s | %-10s\n", "ID", "Kategori", "Deskripsi", "Dampak (kg)", "Frekuensi")
 	fmt.Println("----------------------------------------------------------------------")
@@ -219,25 +220,24 @@ func tampilkanDaftar() {
 
 // --- Fungsi untuk menampilkan hasil pencarian ---
 func tampilkanHasilPencarian(hasilIndeks []int) {
-    if len(hasilIndeks) == 0 {
-        fmt.Println("Aktivitas tidak ditemukan!")
-        return
-    }
-    fmt.Println("Aktivitas ditemukan:")
-    fmt.Printf("%-5s | %-15s | %-20s | %-10s | %-10s\n", "ID", "Kategori", "Deskripsi", "Dampak (kg)", "Frekuensi")
-    fmt.Println("----------------------------------------------------------------------")
-    for _, idx := range hasilIndeks {
-        a := daftarAktivitas[idx]
-        fmt.Printf("%-5d | %-15s | %-20s | %-10.2f | %-10d\n", a.ID, a.Kategori, a.Deskripsi, a.DampakKarbon, a.Frekuensi)
-    }
-}
+	if len(hasilIndeks) == 0 {
+		fmt.Println("Aktivitas tidak ditemukan!")
 
+	}
+	fmt.Println("Aktivitas ditemukan:")
+	fmt.Printf("%-5s | %-15s | %-20s | %-10s | %-10s\n", "ID", "Kategori", "Deskripsi", "Dampak (kg)", "Frekuensi")
+	fmt.Println("----------------------------------------------------------------------")
+	for _, idx := range hasilIndeks {
+		a := daftarAktivitas[idx]
+		fmt.Printf("%-5d | %-15s | %-20s | %-10.2f | %-10d\n", a.ID, a.Kategori, a.Deskripsi, a.DampakKarbon, a.Frekuensi)
+	}
+}
 
 // --- Menu: 6. Laporan Bulanan & Rekomendasi ---
 func laporanBulanan() {
 	if jumlahAktivitas == 0 {
 		fmt.Println("Belum ada aktivitas untuk membuat laporan.")
-		return
+
 	}
 
 	fmt.Println("\n--- Laporan Bulanan Jejak Karbon ---")
@@ -321,7 +321,7 @@ func main() {
 
 		if pilihan == 0 {
 			fmt.Println("Terima kasih telah menggunakan Aplikasi Pelacak Gaya Hidup Ramah Lingkungan!")
-			return
+
 		}
 
 		if pilihan == 1 {
