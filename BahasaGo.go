@@ -48,12 +48,14 @@ func findAktivitasIndexByID(id int) int {
 
 // --- Menu: 1. Tambah Aktivitas ---
 func tambahAktivitas(id int, kategori, deskripsi string, dampak float64, frekuensi int) {
+	var i_cek int
+	var aktivitasBaru Aktivitas
+
 	if jumlahAktivitas >= MAX_AKTIVITAS {
 		fmt.Println("Maaf, kapasitas aktivitas sudah penuh (maksimal 100).")
-		return
+
 	}
 
-	var i_cek int
 	for i_cek = 0; i_cek < jumlahAktivitas; i_cek++ {
 		if daftarAktivitas[i_cek].ID == id {
 			fmt.Println("Gagal menambahkan: ID sudah ada. Gunakan ID lain atau edit aktivitas yang sudah ada.")
@@ -61,7 +63,6 @@ func tambahAktivitas(id int, kategori, deskripsi string, dampak float64, frekuen
 		}
 	}
 
-	var aktivitasBaru Aktivitas
 	aktivitasBaru = Aktivitas{
 		ID:           id,
 		Kategori:     kategori,
@@ -112,13 +113,13 @@ func cariBinary(kategoriCari string) []int {
 	var high int
 	var firstOccurenceIndex int
 	var i_loop int
+	var mid int
 
 	kategoriCariLower = toLower(kategoriCari)
 	low = 0
 	high = jumlahAktivitas - 1
 	firstOccurenceIndex = -1
 	for low <= high {
-		var mid int
 		mid = low + (high-low)/2
 		var currentKategoriLower string
 		currentKategoriLower = toLower(daftarAktivitas[mid].Kategori)
@@ -348,7 +349,7 @@ func main() {
 
 		if pilihan == 0 {
 			fmt.Println("Terima kasih telah menggunakan Aplikasi Pelacak Gaya Hidup Ramah Lingkungan!")
-			return
+
 		}
 
 		if pilihan == 1 {
