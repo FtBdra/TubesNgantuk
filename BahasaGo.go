@@ -120,7 +120,7 @@ func cariBinary(kategoriCari string) []int {
 	high = jumlahAktivitas - 1
 	firstOccurenceIndex = -1
 	for low <= high {
-		mid = low + (high-low)/2
+		mid = (low + high) / 2
 		var currentKategoriLower string
 		currentKategoriLower = toLower(daftarAktivitas[mid].Kategori)
 
