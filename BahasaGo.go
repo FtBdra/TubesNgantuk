@@ -57,7 +57,7 @@ func tambahAktivitas(id int, kategori, deskripsi string, dampak float64, frekuen
 	for i_cek = 0; i_cek < jumlahAktivitas; i_cek++ {
 		if daftarAktivitas[i_cek].ID == id {
 			fmt.Println("Gagal menambahkan: ID sudah ada. Gunakan ID lain atau edit aktivitas yang sudah ada.")
-			return
+
 		}
 	}
 
