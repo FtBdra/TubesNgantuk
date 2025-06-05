@@ -12,27 +12,460 @@ type Aktivitas <
 constant MAX_AKTIVITAS : integer = 100
 
 daftarAktivitas : array [0..MAX_AKTIVITAS-1] of Aktivitas
-jumlahAktivitas : integer
+jumlahAktivitas : integer { Menyimpan jumlah aktivitas yang valid saat ini }
+
+// --- Fungsi Bantu: Mengonversi string ke huruf kecil ---
+function toLower(in s : string) : string
+{ Mengembalikan string s dengan semua karakter diubah menjadi huruf kecil.
+  I.S. : String s terdefinisi.
+  F.S. : String hasil berisi versi huruf kecil dari s.
+}
+kamus
+    hasil : string
+    i : integer
+    karakter_ascii : integer
+    karakter_asli : char
+algoritma
+    hasil <- ""
+    i <- 0
+    while i < panjang(s) do
+        karakter_asli <- s[i] // Ambil karakter pada indeks i
+        if karakter_asli >= 'A' AND karakter_asli <= 'Z' then
+            karakter_ascii <- ascii(karakter_asli) + (ascii('a') - ascii('A'))
+            hasil <- hasil + char(karakter_ascii) // char() mengonversi kode ASCII ke karakter
+        else
+            hasil <- hasil + karakter_asli
+        endif
+        i <- i + 1
+    endwhile
+    return hasil
+endfunction
+
+// --- Pencarian: Cari ID Aktivitas (untuk internal) ---
+function findAktivitasIndexByID(in idCari : integer) : integer
+{ Mengembalikan indeks dari aktivitas dengan ID yang cocok, atau -1 jika tidak ditemukan.
+  I.S. : idCari terdefinisi, daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : Mengembalikan indeks array jika ditemukan, -1 jika tidak.
+}
+kamus
+    i : integer
+algoritma
+    i <- 0
+    while i < jumlahAktivitas do
+        if daftarAktivitas[i].ID == idCari then
+            return i
+        endif
+        i <- i + 1
+    endwhile
+    return -1
+endfunction
+
+// --- Menu: 1. Tambah Aktivitas ---
+procedure tambahAktivitas(in id_baru : integer, in kategori_baru : string, in deskripsi_baru : string, in dampak_baru : real, in frekuensi_baru : integer)
+{ Menambahkan aktivitas baru ke dalam daftarAktivitas.
+  I.S. : Semua parameter input terdefinisi. daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : Jika ID unik dan kapasitas tersedia, aktivitas baru ditambahkan dan jumlahAktivitas bertambah.
+         Pesan kesalahan ditampilkan jika kapasitas penuh atau ID sudah ada.
+}
+kamus
+    aktivitasBaru : Aktivitas
+    i : integer
+algoritma
+    if jumlahAktivitas >= MAX_AKTIVITAS then
+        output("Maaf, kapasitas aktivitas sudah penuh (maksimal ", MAX_AKTIVITAS, ").")
+        return
+    endif
+
+    // Cek duplikasi ID
+    i <- 0
+    while i < jumlahAktivitas do
+        if daftarAktivitas[i].ID == id_baru then
+            output("Gagal menambahkan: ID sudah ada. Gunakan ID lain atau edit aktivitas yang sudah ada.")
+            return
+        endif
+        i <- i + 1
+    endwhile
+
+    aktivitasBaru.ID <- id_baru
+    aktivitasBaru.Kategori <- kategori_baru
+    aktivitasBaru.Deskripsi <- deskripsi_baru
+    aktivitasBaru.DampakKarbon <- dampak_baru
+    aktivitasBaru.Frekuensi <- frekuensi_baru
+
+    daftarAktivitas[jumlahAktivitas] <- aktivitasBaru
+    jumlahAktivitas <- jumlahAktivitas + 1
+    output("Aktivitas berhasil ditambahkan!")
+endprocedure
+
+// --- Fungsi bantu untuk mengurutkan daftarAktivitas berdasarkan Kategori untuk Binary Search ---
+procedure selectionSortKategori()
+{ Mengurutkan daftarAktivitas berdasarkan Kategori secara ascending (case-insensitive).
+  I.S. : daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : daftarAktivitas terurut berdasarkan Kategori.
+}
+kamus
+    i, j, minIndex : integer
+    temp : Aktivitas
+    kategori_j_lower, kategori_minIndex_lower : string
+algoritma
+    i <- 0
+    while i < jumlahAktivitas - 1 do
+        minIndex <- i
+        j <- i + 1
+        while j < jumlahAktivitas do
+            kategori_j_lower <- toLower(daftarAktivitas[j].Kategori)
+            kategori_minIndex_lower <- toLower(daftarAktivitas[minIndex].Kategori)
+            if kategori_j_lower < kategori_minIndex_lower then
+                minIndex <- j
+            endif
+            j <- j + 1
+        endwhile
+        // Tukar
+        if minIndex != i then
+            temp <- daftarAktivitas[i]
+            daftarAktivitas[i] <- daftarAktivitas[minIndex]
+            daftarAktivitas[minIndex] <- temp
+        endif
+        i <- i + 1
+    endwhile
+endprocedure
+
+// --- Menu: 2. Cari Aktivitas ---
+// Implementasi Sequential Search
+function cariSequential(in kategoriCari : string) : array of integer
+{ Mencari aktivitas berdasarkan kategori menggunakan sequential search.
+  I.S. : kategoriCari terdefinisi. daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : Mengembalikan array berisi indeks aktivitas yang cocok. Array kosong jika tidak ada.
+}
+kamus
+    hasilIndeks : array of integer { Dianggap sebagai list dinamis }
+    kategoriCariLower : string
+    i : integer
+    kategoriCurrentLower : string
+algoritma
+    hasilIndeks <- [] // Inisialisasi array/list kosong
+    kategoriCariLower <- toLower(kategoriCari)
+    i <- 0
+    while i < jumlahAktivitas do
+        kategoriCurrentLower <- toLower(daftarAktivitas[i].Kategori)
+        if kategoriCurrentLower == kategoriCariLower then
+            tambahkan_elemen(hasilIndeks, i) // Fungsi hipotetis untuk menambah elemen ke array/list dinamis
+        endif
+        i <- i + 1
+    endwhile
+    return hasilIndeks
+endfunction
+
+// Implementasi Binary Search (membutuhkan data terurut berdasarkan Kategori)
+function cariBinary(in kategoriCari : string) : array of integer
+{ Mencari aktivitas berdasarkan kategori menggunakan binary search. Membutuhkan data terurut.
+  I.S. : kategoriCari terdefinisi. daftarAktivitas terurut berdasarkan kategori.
+  F.S. : Mengembalikan array berisi indeks aktivitas yang cocok. Array kosong jika tidak ada.
+}
+kamus
+    hasilIndeks : array of integer { Dianggap sebagai list dinamis }
+    kategoriCariLower : string
+    low, high, mid : integer
+    firstOccurenceIndex : integer
+    currentKategoriLower : string
+    i : integer
+algoritma
+    hasilIndeks <- [] // Inisialisasi array/list kosong
+    kategoriCariLower <- toLower(kategoriCari)
+    low <- 0
+    high <- jumlahAktivitas - 1
+    firstOccurenceIndex <- -1
+
+    // Fase 1: Temukan indeks kemunculan pertama
+    while low <= high do
+        mid <- low + (high - low) div 2
+        currentKategoriLower <- toLower(daftarAktivitas[mid].Kategori)
+
+        if currentKategoriLower == kategoriCariLower then
+            firstOccurenceIndex <- mid
+            high <- mid - 1 // Coba cari lagi di sisi kiri
+        else if currentKategoriLower < kategoriCariLower then
+            low <- mid + 1
+        else
+            high <- mid - 1
+        endif
+    endwhile
+
+    if firstOccurenceIndex == -1 then
+        return hasilIndeks // Tidak ditemukan
+    endif
+
+    // Fase 2: Tambahkan semua kemunculan yang ditemukan ke dalam hasilIndeks
+    tambahkan_elemen(hasilIndeks, firstOccurenceIndex)
+
+    i <- firstOccurenceIndex + 1
+    while i < jumlahAktivitas do
+        if toLower(daftarAktivitas[i].Kategori) == kategoriCariLower then
+            tambahkan_elemen(hasilIndeks, i)
+        else
+            // Karena array sudah terurut, jika kategori tidak cocok lagi, bisa break
+            // Namun, loop akan berhenti secara alami jika tidak ada lagi yang cocok.
+        endif
+        i <- i + 1
+    endwhile
+    return hasilIndeks
+endfunction
+
+// --- Menu: 3. Edit Aktivitas & Hapus Aktivitas ---
+procedure editAktivitas(in id_edit : integer, in kategori_baru : string, in deskripsi_baru : string, in dampak_baru : real, in frekuensi_baru : integer, in isDelete : boolean)
+{ Mengedit atau menghapus aktivitas berdasarkan ID.
+  I.S. : Semua parameter input terdefinisi. daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : Aktivitas dengan ID cocok diubah atau dihapus. Pesan status ditampilkan.
+}
+kamus
+    foundIndex : integer
+    i : integer
+    aktivitasKosong : Aktivitas {Untuk "mengosongkan" setelah hapus}
+algoritma
+    foundIndex <- findAktivitasIndexByID(id_edit)
+
+    if foundIndex != -1 then
+        if isDelete == TRUE then
+            // Geser elemen untuk menghapus
+            i <- foundIndex
+            while i < jumlahAktivitas - 1 do
+                daftarAktivitas[i] <- daftarAktivitas[i+1]
+                i <- i + 1
+            endwhile
+            // Secara opsional "kosongkan" elemen terakhir yang sudah digeser
+            aktivitasKosong.ID <- 0; aktivitasKosong.Kategori <- ""; aktivitasKosong.Deskripsi <- "";
+            aktivitasKosong.DampakKarbon <- 0.0; aktivitasKosong.Frekuensi <- 0;
+            daftarAktivitas[jumlahAktivitas-1] <- aktivitasKosong
+            jumlahAktivitas <- jumlahAktivitas - 1
+            output("Aktivitas berhasil dihapus!")
+        else
+            // Edit aktivitas
+            daftarAktivitas[foundIndex].Kategori <- kategori_baru
+            daftarAktivitas[foundIndex].Deskripsi <- deskripsi_baru
+            daftarAktivitas[foundIndex].DampakKarbon <- dampak_baru
+            daftarAktivitas[foundIndex].Frekuensi <- frekuensi_baru
+            output("Aktivitas berhasil diupdate!")
+        endif
+    else
+        output("Aktivitas dengan ID tersebut tidak ditemukan.")
+    endif
+endprocedure
+
+// --- Menu: 4. Urutkan ---
+procedure selectionSortDampak(in ascending : boolean)
+{ Mengurutkan daftarAktivitas berdasarkan DampakKarbon menggunakan selection sort.
+  I.S. : ascending terdefinisi. daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : daftarAktivitas terurut berdasarkan DampakKarbon.
+}
+kamus
+    i, j, extremeIndex : integer
+    temp : Aktivitas
+algoritma
+    i <- 0
+    while i < jumlahAktivitas - 1 do
+        extremeIndex <- i
+        j <- i + 1
+        while j < jumlahAktivitas do
+            if ascending == TRUE then
+                if daftarAktivitas[j].DampakKarbon < daftarAktivitas[extremeIndex].DampakKarbon then
+                    extremeIndex <- j
+                endif
+            else // descending
+                if daftarAktivitas[j].DampakKarbon > daftarAktivitas[extremeIndex].DampakKarbon then
+                    extremeIndex <- j
+                endif
+            endif
+            j <- j + 1
+        endwhile
+        // Tukar
+        if extremeIndex != i then
+            temp <- daftarAktivitas[i]
+            daftarAktivitas[i] <- daftarAktivitas[extremeIndex]
+            daftarAktivitas[extremeIndex] <- temp
+        endif
+        i <- i + 1
+    endwhile
+endprocedure
+
+procedure insertionSortFrekuensi(in ascending : boolean)
+{ Mengurutkan daftarAktivitas berdasarkan Frekuensi menggunakan insertion sort.
+  I.S. : ascending terdefinisi. daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : daftarAktivitas terurut berdasarkan Frekuensi.
+}
+kamus
+    i, j : integer
+    key : Aktivitas
+algoritma
+    i <- 1
+    while i < jumlahAktivitas do
+        key <- daftarAktivitas[i]
+        j <- i - 1
+        if ascending == TRUE then
+            while j >= 0 AND daftarAktivitas[j].Frekuensi > key.Frekuensi do
+                daftarAktivitas[j+1] <- daftarAktivitas[j]
+                j <- j - 1
+            endwhile
+        else // descending
+            while j >= 0 AND daftarAktivitas[j].Frekuensi < key.Frekuensi do
+                daftarAktivitas[j+1] <- daftarAktivitas[j]
+                j <- j - 1
+            endwhile
+        endif
+        daftarAktivitas[j+1] <- key
+        i <- i + 1
+    endwhile
+endprocedure
+
+// --- Menu: 5. Tampilkan Daftar Aktivitas ---
+procedure tampilkanDaftar()
+{ Menampilkan semua aktivitas yang tersimpan.
+  I.S. : daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : Daftar aktivitas ditampilkan ke output.
+}
+kamus
+    i : integer
+    a : Aktivitas
+algoritma
+    output("\n--- Daftar Aktivitas ---")
+    if jumlahAktivitas == 0 then
+        output("Belum ada aktivitas yang ditambahkan.")
+        return
+    endif
+    output(FORMAT_HEADER_TABEL("ID", "Kategori", "Deskripsi", "Dampak (kg)", "Frekuensi"))
+    output("----------------------------------------------------------------------")
+    i <- 0
+    while i < jumlahAktivitas do
+        a <- daftarAktivitas[i]
+        output(FORMAT_BARIS_AKTIVITAS(a.ID, a.Kategori, a.Deskripsi, a.DampakKarbon, a.Frekuensi))
+        i <- i + 1
+    endwhile
+endprocedure
+
+// --- Fungsi untuk menampilkan hasil pencarian ---
+procedure tampilkanHasilPencarian(in hasilIndeks : array of integer)
+{ Menampilkan aktivitas berdasarkan array indeks hasil pencarian.
+  I.S. : hasilIndeks terdefinisi. daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : Aktivitas yang cocok ditampilkan. Pesan jika tidak ada yang cocok.
+}
+kamus
+    i : integer
+    idx : integer
+    a : Aktivitas
+algoritma
+    if panjang(hasilIndeks) == 0 then // panjang() adalah fungsi hipotetis untuk ukuran array/list
+        output("Aktivitas tidak ditemukan!")
+        return
+    endif
+    output("Aktivitas ditemukan:")
+    output(FORMAT_HEADER_TABEL("ID", "Kategori", "Deskripsi", "Dampak (kg)", "Frekuensi"))
+    output("----------------------------------------------------------------------")
+    i <- 0
+    while i < panjang(hasilIndeks) do
+        idx <- hasilIndeks[i]
+        a <- daftarAktivitas[idx]
+        output(FORMAT_BARIS_AKTIVITAS(a.ID, a.Kategori, a.Deskripsi, a.DampakKarbon, a.Frekuensi))
+        i <- i + 1
+    endwhile
+endprocedure
+
+// --- Menu: 6. Laporan Bulanan & Rekomendasi ---
+procedure laporanBulanan()
+{ Menghasilkan dan menampilkan laporan jejak karbon bulanan.
+  I.S. : daftarAktivitas dan jumlahAktivitas terdefinisi.
+  F.S. : Laporan bulanan, skor keberlanjutan, dan rekomendasi ditampilkan.
+}
+kamus
+    totalJejakKarbon : real
+    aktivitasTerbanyakDampak : Aktivitas
+    aktivitasTerdikitDampak : Aktivitas
+    i : integer
+    a : Aktivitas
+    skor : real
+algoritma
+    if jumlahAktivitas == 0 then
+        output("Belum ada aktivitas untuk membuat laporan.")
+        return
+    endif
+
+    output("\n--- Laporan Bulanan Jejak Karbon ---")
+
+    totalJejakKarbon <- 0.0
+    // Inisialisasi nilai ekstrem
+    if jumlahAktivitas > 0 then
+        aktivitasTerbanyakDampak <- daftarAktivitas[0] // Asumsi awal
+        aktivitasTerdikitDampak <- daftarAktivitas[0] // Asumsi awal
+        // Jika perlu inisialisasi nilai dampak spesifik, bisa dilakukan di sini,
+        // tapi loop akan mengoreksinya jika ada aktivitas.
+        // Jika semua dampak positif, inisialisasi terbesar ke nilai sangat kecil, terkecil ke sangat besar.
+        aktivitasTerbanyakDampak.DampakKarbon <- -999999999.0
+        aktivitasTerdikitDampak.DampakKarbon <- 999999999.0
+    endif
+
+
+    i <- 0
+    while i < jumlahAktivitas do
+        a <- daftarAktivitas[i]
+        totalJejakKarbon <- totalJejakKarbon + (a.DampakKarbon * konversi_ke_real(a.Frekuensi))
+
+        if a.DampakKarbon > aktivitasTerbanyakDampak.DampakKarbon then
+            aktivitasTerbanyakDampak <- a
+        endif
+        if a.DampakKarbon < aktivitasTerdikitDampak.DampakKarbon then
+            aktivitasTerdikitDampak <- a
+        endif
+        i <- i + 1
+    endwhile
+
+    output("Total Jejak Karbon Bulan Ini: ", totalJejakKarbon, " kg CO2e")
+
+    if jumlahAktivitas > 0 then // Hanya tampilkan jika ada data
+        output("Aktivitas dengan Dampak Karbon Terbesar: '", aktivitasTerbanyakDampak.Deskripsi, "' (", aktivitasTerbanyakDampak.DampakKarbon, " kg CO2e)")
+        output("Aktivitas dengan Dampak Karbon Terkecil: '", aktivitasTerdikitDampak.Deskripsi, "' (", aktivitasTerdikitDampak.DampakKarbon, " kg CO2e)")
+    endif
+
+    skor <- 100.0 - (totalJejakKarbon / 100.0)
+    if skor < 0.0 then
+        skor <- 0.0
+    else if skor > 100.0 then
+        skor <- 100.0
+    endif
+    output("Skor Keberlanjutan Anda: ", skor, "/100")
+
+    output("\nRekomendasi untuk Mengurangi Jejak Karbon:")
+    if totalJejakKarbon > 500.0 then
+        output("- Pertimbangkan untuk mengurangi perjalanan menggunakan kendaraan pribadi.")
+        output("- Fokus pada makanan nabati dan lokal.")
+    else if totalJejakKarbon > 200.0 then
+        output("- Kurangi konsumsi listrik (matikan lampu yang tidak perlu, cabut charger).")
+        output("- Pilah sampah dengan lebih baik dan kurangi penggunaan plastik sekali pakai.")
+    else
+        output("- Terus pertahankan gaya hidup ramah lingkungan Anda!")
+        output("- Edukasi orang lain tentang pentingnya keberlanjutan.")
+    endif
+
+    output("\nSistem memberikan skor keberlanjutan berdasarkan pola hidup pengguna. Skor Anda dihitung dari total jejak karbon bulanan. Semakin rendah jejak karbon, semakin tinggi skornya.")
+endprocedure
 
 // --- Algoritma Program Utama ---
 algoritma
     // Kamus (lokal) dari program utama
     kamus
-        pilihan, subPilihan, id, frekuensi : integer
-        kategori, deskripsi : string
-        dampak : real
-        ascending : boolean
-        hasilIndeks : array of integer // Untuk menyimpan hasil pencarian indeks
+        pilihan, subPilihan, idInput, frekuensiInput : integer
+        kategoriInput, deskripsiInput : string
+        dampakInput : real
+        ascendingInput : boolean
+        hasilIndeksPencarian : array of integer
 
-    // Contoh data awal (bisa disesuaikan atau dikosongkan)
-    daftarAktivitas[0] <- (ID: 1, Kategori: "Transportasi", Deskripsi: "Motor", DampakKarbon: 2.3, Frekuensi: 20)
-    daftarAktivitas[1] <- (ID: 2, Kategori: "Transportasi", Deskripsi: "Kereta", DampakKarbon: 1.0, Frekuensi: 10)
-    daftarAktivitas[2] <- (ID: 3, Kategori: "Transportasi", Deskripsi: "Bus", DampakKarbon: 0.5, Frekuensi: 15)
-    daftarAktivitas[3] <- (ID: 4, Kategori: "Makanan", Deskripsi: "Ayam", DampakKarbon: 1.5, Frekuensi: 30)
-    daftarAktivitas[4] <- (ID: 5, Kategori: "Makanan", Deskripsi: "Sayur", DampakKarbiom: 0.2, Frekuensi: 15)
-    daftarAktivitas[5] <- (ID: 6, Kategori: "Makanan", Deskripsi: "Daging", DampakKarbon: 3.0, Frekuensi: 5)
-    daftarAktivitas[6] <- (ID: 7, Kategori: "Energi", Deskripsi: "Lampu", DampakKarbon: -0.2, Frekuensi: 60)
-    jumlahAktivitas <- 7
+    // Contoh data awal (sesuai dengan kode Go)
+    // Panggil prosedur tambahAktivitas untuk inisialisasi
+    tambahAktivitas(1, "Transportasi", "Motor", 2.3, 20)
+    tambahAktivitas(2, "Transportasi", "Kereta", 1.0, 10)
+    tambahAktivitas(3, "Transportasi", "Bus", 0.5, 15)
+    tambahAktivitas(4, "Makanan", "Ayam", 1.5, 30)
+    tambahAktivitas(5, "Makanan", "Sayur", 0.2, 15) // Perbaikan typo "DampakKarbiom" menjadi "DampakKarbon"
+    tambahAktivitas(6, "Makanan", "Daging", 3.0, 5)
+    tambahAktivitas(7, "Energi", "Lampu", -0.2, 60)
+    // jumlahAktivitas akan diupdate oleh prosedur tambahAktivitas
 
     output("==================================================")
     output("Selamat Datang!")
@@ -53,40 +486,40 @@ algoritma
 
         if pilihan == 0 then
             output("Terima kasih telah menggunakan Aplikasi Pelacak Gaya Hidup Ramah Lingkungan!")
-            return // Keluar dari program utama
+            return // Keluar dari program utama (atau gunakan BREAK jika di dalam loop)
         else if pilihan == 1 then
             output("Masukkan ID (berupa angka, contoh: 1): ")
-            input(id)
+            input(idInput)
             output("Masukkan Kategori (satu kata, contoh: Transportasi): ")
-            input(kategori)
+            input(kategoriInput)
             output("Masukkan Deskripsi (satu kata, contoh: Mobil): ")
-            input(deskripsi)
+            input(deskripsiInput)
             output("Masukkan Dampak Karbon (kg CO2 per aktivitas, contoh: 0.5): ")
-            input(dampak)
+            input(dampakInput)
             output("Masukkan Frekuensi (kali per bulan, contoh: 20): ")
-            input(frekuensi)
-            tambahAktivitas(id, kategori, deskripsi, dampak, frekuensi) // Pemanggilan prosedur
+            input(frekuensiInput)
+            tambahAktivitas(idInput, kategoriInput, deskripsiInput, dampakInput, frekuensiInput)
         else if pilihan == 2 then
             output("Masukkan Kategori yang dicari (satu kata, contoh: Transportasi): ")
-            input(kategori)
+            input(kategoriInput)
             output("Pilih metode pencarian:")
             output("1. Sequential Search")
             output("2. Binary Search")
             output("Pilih metode (berupa angka, contoh: 1): ")
             input(subPilihan)
             if subPilihan == 1 then
-                hasilIndeks <- cariSequential(kategori) // Pemanggilan fungsi
-                tampilkanHasilPencarian(hasilIndeks)    // Pemanggilan prosedur
+                hasilIndeksPencarian <- cariSequential(kategoriInput)
+                tampilkanHasilPencarian(hasilIndeksPencarian)
             else if subPilihan == 2 then
-                selectionSortKategori() // Pemanggilan prosedur
-                hasilIndeks <- cariBinary(kategori) // Pemanggilan fungsi
-                tampilkanHasilPencarian(hasilIndeks) // Pemanggilan prosedur
+                selectionSortKategori() // Urutkan dulu sebelum binary search
+                hasilIndeksPencarian <- cariBinary(kategoriInput)
+                tampilkanHasilPencarian(hasilIndeksPencarian)
             else
                 output("Pilihan tidak valid!")
             endif
         else if pilihan == 3 then
             output("Masukkan ID aktivitas (berupa angka, contoh: 1): ")
-            input(id)
+            input(idInput)
             output("Pilih aksi:")
             output("1. Edit Aktivitas")
             output("2. Hapus Aktivitas")
@@ -94,16 +527,16 @@ algoritma
             input(subPilihan)
             if subPilihan == 1 then
                 output("Masukkan Kategori baru (satu kata, contoh: Transportasi): ")
-                input(kategori)
+                input(kategoriInput)
                 output("Masukkan Deskripsi baru (satu kata, contoh: Bus): ")
-                input(deskripsi)
+                input(deskripsiInput)
                 output("Masukkan Dampak Karbon baru (contoh: 0.2): ")
-                input(dampak)
+                input(dampakInput)
                 output("Masukkan Frekuensi baru (contoh: 15): ")
-                input(frekuensi)
-                editAktivitas(id, kategori, deskripsi, dampak, frekuensi, FALSE) // Pemanggilan prosedur
+                input(frekuensiInput)
+                editAktivitas(idInput, kategoriInput, deskripsiInput, dampakInput, frekuensiInput, FALSE)
             else if subPilihan == 2 then
-                editAktivitas(id, "", "", 0, 0, TRUE) // Pemanggilan prosedur
+                editAktivitas(idInput, "", "", 0.0, 0, TRUE)
             else
                 output("Pilihan tidak valid!")
             endif
@@ -114,405 +547,22 @@ algoritma
             output("Pilih kriteria (berupa angka, contoh: 1): ")
             input(subPilihan)
             output("Urutkan ascending? (true/false, contoh: true): ")
-            input(ascending)
+            input(ascendingInput) // Asumsi input dikonversi ke boolean TRUE/FALSE
             if subPilihan == 1 then
-                selectionSortDampak(ascending) // Pemanggilan prosedur
-                tampilkanDaftar() // Pemanggilan prosedur
+                selectionSortDampak(ascendingInput)
+                tampilkanDaftar()
             else if subPilihan == 2 then
-                insertionSortFrekuensi(ascending) // Pemanggilan prosedur
-                tampilkanDaftar() // Pemanggilan prosedur
+                insertionSortFrekuensi(ascendingInput)
+                tampilkanDaftar()
             else
                 output("Pilihan tidak valid!")
             endif
         else if pilihan == 5 then
-            tampilkanDaftar() // Pemanggilan prosedur
+            tampilkanDaftar()
         else if pilihan == 6 then
-            laporanBulanan() // Pemanggilan prosedur
+            laporanBulanan()
         else
             output("Pilihan tidak valid!")
         endif
     endwhile
 endprogram
-
-// --- Implementasi Prosedur/Fungsi Pendukung ---
-
-function ubah_ke_huruf_kecil(in s : string) : string
-{ Mengembalikan string s dengan semua karakter diubah menjadi huruf kecil }
-kamus
-    hasil : string
-    i : integer
-    r : karakter
-algoritma
-    hasil <- ""
-    i <- 0
-    while i < panjang(s) do
-        r <- s[i]
-        if r >= 'A' AND r <= 'Z' then
-            hasil <- hasil + karakter_dari_ascii(ascii(r) + (ascii('a') - ascii('A')))
-        else
-            hasil <- hasil + r
-        endif
-        i <- i + 1
-    endwhile
-    return hasil
-endfunction
-
-function findAktivitasIndexByID(in id_cari : integer) : integer
-{ Mengembalikan indeks Aktivitas dengan ID = id_cari, atau -1 jika tidak ditemukan }
-kamus
-    i : integer
-algoritma
-    i <- 0
-    while i < jumlahAktivitas do
-        if daftarAktivitas[i].ID == id_cari then
-            return i
-        endif
-        i <- i + 1
-    endwhile
-    return -1
-endfunction
-
-procedure tampilkanDaftar()
-{I.S. daftarAktivitas dan jumlahAktivitas terdefinisi
-F.S. Menampilkan seluruh Aktivitas yang valid ke konsol}
-kamus
-    i : integer
-    a : Aktivitas
-algoritma
-    output("\n--- Daftar Aktivitas ---")
-    if jumlahAktivitas == 0 then
-        output("Belum ada aktivitas yang ditambahkan.")
-        return
-    endif
-    output(FORMAT_HEADER_TABEL ("ID", "Kategori", "Deskripsi", "Dampak (kg)", "Frekuensi"))
-    output("----------------------------------------------------------------------")
-    i <- 0
-    while i < jumlahAktivitas do
-        a <- daftarAktivitas[i]
-        output(FORMAT_BARIS_AKTIVITAS (a.ID, a.Kategori, a.Deskripsi, a.DampakKarbon, a.Frekuensi))
-        i <- i + 1
-    endwhile
-endprocedure
-
-procedure tampilkanHasilPencarian(in hasilIndeks : array of integer)
-{I.S. hasilIndeks berisi indeks-indeks aktivitas yang ditemukan
-F.S. Menampilkan detail aktivitas-aktivitas tersebut ke konsol}
-kamus
-    idx : integer
-    a : Aktivitas
-    i : integer // untuk iterasi hasilIndeks
-algoritma
-    if panjang(hasilIndeks) == 0 then
-        output("Aktivitas tidak ditemukan!")
-        return
-    endif
-    output("Aktivitas ditemukan:")
-    output(FORMAT_HEADER_TABEL ("ID", "Kategori", "Deskripsi", "Dampak (kg)", "Frekuensi"))
-    output("----------------------------------------------------------------------")
-    i <- 0
-    while i < panjang(hasilIndeks) do
-        idx <- hasilIndeks[i]
-        a <- daftarAktivitas[idx]
-        output(FORMAT_BARIS_AKTIVITAS (a.ID, a.Kategori, a.Deskripsi, a.DampakKarbon, a.Frekuensi))
-        i <- i + 1
-    endwhile
-endprocedure
-
-procedure tambahAktivitas(in id_baru : integer, in kategori_baru : string, in deskripsi_baru : string, in dampak_baru : real, in frekuensi_baru : integer)
-{I.S. Input data aktivitas baru terdefinisi
-F.S. Aktivitas baru ditambahkan ke daftarAktivitas jika ID unik dan kapasitas tersedia}
-kamus
-    aktivitasBaru : Aktivitas
-    indeks : integer
-algoritma
-    if jumlahAktivitas == MAX_AKTIVITAS then // Operator perbandingan '=='
-        output("Maaf, kapasitas aktivitas sudah penuh (maksimal ", MAX_AKTIVITAS, ").")
-        return
-    endif
-
-    indeks <- findAktivitasIndexByID(id_baru)
-    if indeks == -1 then // Operator perbandingan '=='
-        // Lanjutkan penambahan
-    else
-        output("Gagal menambahkan: ID sudah ada. Gunakan ID lain atau edit aktivitas yang sudah ada.")
-        return
-    endif
-
-    aktivitasBaru.ID <- id_baru
-    aktivitasBaru.Kategori <- kategori_baru
-    aktivitasBaru.Deskripsi <- deskripsi_baru
-    aktivitasBaru.DampakKarbon <- dampak_baru
-    aktivitasBaru.Frekuensi <- frekuensi_baru
-
-    daftarAktivitas[jumlahAktivitas] <- aktivitasBaru
-    jumlahAktivitas <- jumlahAktivitas + 1
-    output("Aktivitas berhasil ditambahkan!")
-endprocedure
-
-procedure editAktivitas(in id_edit : integer, in kategori_baru : string, in deskripsi_baru : string, in dampak_baru : real, in frekuensi_baru : integer, in isDelete : boolean)
-{I.S. id_edit dan parameter lainnya terdefinisi
-F.S. Aktivitas dengan id_edit diedit atau dihapus}
-kamus
-    indeksDitemukan : integer
-    i : integer
-    defaultAktivitas : Aktivitas // Untuk mengosongkan elemen setelah digeser
-algoritma
-    indeksDitemukan <- findAktivitasIndexByID(id_edit)
-
-    if indeksDitemukan == -1 then // Operator perbandingan '=='
-        output("Aktivitas dengan ID tersebut tidak ditemukan.")
-    else
-        if isDelete == TRUE then // Operator perbandingan '=='
-            // Logika Hapus Aktivitas
-            i <- indeksDitemukan
-            while i < jumlahAktivitas - 1 do // Operator perbandingan '<'
-                daftarAktivitas[i] <- daftarAktivitas[i+1]
-                i <- i + 1
-            endwhile
-            defaultAktivitas.ID <- 0 // Menginisialisasi default struct
-            defaultAktivitas.Kategori <- ""
-            defaultAktivitas.Deskripsi <- ""
-            defaultAktivitas.DampakKarbon <- 0.0
-            defaultAktivitas.Frekuensi <- 0
-            daftarAktivitas[jumlahAktivitas-1] <- defaultAktivitas // Kosongkan elemen terakhir
-            jumlahAktivitas <- jumlahAktivitas - 1
-            output("Aktivitas berhasil dihapus!")
-        else // isDelete == FALSE
-            // Logika Edit Aktivitas
-            daftarAktivitas[indeksDitemukan].Kategori <- kategori_baru
-            daftarAktivitas[indeksDitemukan].Deskripsi <- deskripsi_baru
-            daftarAktivitas[indeksDitemukan].DampakKarbon <- dampak_baru
-            daftarAktivitas[indeksDitemukan].Frekuensi <- frekuensi_baru
-            output("Aktivitas berhasil diupdate!")
-        endif
-    endif
-endprocedure
-
-function cariSequential(in kategoriCari : string) : array of integer
-{ Mengembalikan array indeks dari semua Aktivitas yang memiliki Kategori sesuai kategoriCari }
-kamus
-    hasilIndeks : array of integer
-    i : integer
-    kategoriCariKecil : string
-    kategoriAktivitasKecil : string
-algoritma
-    hasilIndeks <- [] // Inisialisasi array kosong
-    kategoriCariKecil <- ubah_ke_huruf_kecil(kategoriCari)
-
-    i <- 0
-    while i < jumlahAktivitas do // Operator perbandingan '<'
-        kategoriAktivitasKecil <- ubah_ke_huruf_kecil(daftarAktivitas[i].Kategori)
-        if kategoriAktivitasKecil == kategoriCariKecil then // Operator perbandingan '=='
-            tambahkan i ke hasilIndeks // Tambahkan indeks ke array hasil
-        endif
-        i <- i + 1
-    endwhile
-    
-    return hasilIndeks
-endfunction
-
-procedure selectionSortKategori()
-{I.S. daftarAktivitas dan jumlahAktivitas terdefinisi
-F.S. daftarAktivitas terurut secara ASCENDING berdasarkan Kategori (case-insensitive)}
-kamus
-    i, j, minIndex : integer
-    temp : Aktivitas // Variabel temporary untuk proses tukar
-algoritma
-    i <- 0
-    while i < jumlahAktivitas - 1 do // Operator perbandingan '<'
-        minIndex <- i
-        j <- i + 1
-        while j < jumlahAktivitas do // Operator perbandingan '<'
-            if ubah_ke_huruf_kecil(daftarAktivitas[j].Kategori) < ubah_ke_huruf_kecil(daftarAktivitas[minIndex].Kategori) then // Operator perbandingan '<'
-                minIndex <- j
-            endif
-            j <- j + 1
-        endwhile
-        
-        // Tukar elemen
-        temp <- daftarAktivitas[i]
-        daftarAktivitas[i] <- daftarAktivitas[minIndex]
-        daftarAktivitas[minIndex] <- temp
-        i <- i + 1
-    endwhile
-endprocedure
-
-function cariBinary(in kategoriCari : string) : array of integer
-{ Mengembalikan array indeks dari semua Aktivitas yang memiliki Kategori sesuai kategoriCari }
-kamus
-    hasilIndeks : array of integer
-    low, high, mid : integer
-    firstOccurenceIndex : integer
-    kategoriCariKecil : string
-    kategoriMidKecil : string
-    i : integer
-algoritma
-    hasilIndeks <- []
-    kategoriCariKecil <- ubah_ke_huruf_kecil(kategoriCari)
-    low <- 0
-    high <- jumlahAktivitas - 1
-    firstOccurenceIndex <- -1
-
-    // Fase 1: Cari indeks kemunculan pertama
-    while low <= high do // Operator perbandingan '<='
-        mid <- low + (high - low) div 2 // Gunakan div untuk pembagian integer
-        kategoriMidKecil <- ubah_ke_huruf_kecil(daftarAktivitas[mid].Kategori)
-
-        if kategoriMidKecil == kategoriCariKecil then // Operator perbandingan '=='
-            firstOccurenceIndex <- mid // Potensi indeks pertama
-            high <- mid - 1             // Coba cari lagi di sisi kiri untuk yang paling awal
-        else if kategoriMidKecil < kategoriCariKecil then // Operator perbandingan '<'
-            low <- mid + 1
-        else // kategoriMidKecil > kategoriCariKecil
-            high <- mid - 1
-        endif
-    endwhile
-    
-    if firstOccurenceIndex == -1 then // Operator perbandingan '=='
-        return hasilIndeks // Tidak ditemukan
-    endif
-
-    // Fase 2: Kumpulkan semua kemunculan dari firstOccurenceIndex ke kanan
-    tambahkan firstOccurenceIndex ke hasilIndeks
-    i <- firstOccurenceIndex + 1
-    while i < jumlahAktivitas do // Operator perbandingan '<'
-        if ubah_ke_huruf_kecil(daftarAktivitas[i].Kategori) == kategoriCariKecil then // Operator perbandingan '=='
-            tambahkan i ke hasilIndeks
-        else
-            // Karena array sudah terurut, jika kategori tidak cocok, tidak akan ada lagi kecocokan ke kanan.
-            // Loop akan tetap berjalan tanpa break.
-        endif
-        i <- i + 1
-    endwhile
-    
-    return hasilIndeks
-endfunction
-
-procedure selectionSortDampak(inout daftarAktivitas : array of Aktivitas, in jumlahAktivitas : integer, in ascending : boolean)
-{I.S. daftarAktivitas terdefinisi, jumlahAktivitas valid
-F.S. daftarAktivitas terurut berdasarkan DampakKarbon secara ASCENDING/DESCENDING}
-kamus
-    i, j, indeksEkstrem : integer
-    temp : Aktivitas
-algoritma
-    i <- 0
-    while i < jumlahAktivitas - 1 do // Operator perbandingan '<'
-        indeksEkstrem <- i
-        j <- i + 1
-        while j < jumlahAktivitas do // Operator perbandingan '<'
-            if ascending then // Perbandingan boolean 'ascending'
-                if daftarAktivitas[j].DampakKarbon < daftarAktivitas[indeksEkstrem].DampakKarbon then // Operator perbandingan '<'
-                    indeksEkstrem <- j
-                endif
-            else // Descending
-                if daftarAktivitas[j].DampakKarbon > daftarAktivitas[indeksEkstrem].DampakKarbon then // Operator perbandingan '>'
-                    indeksEkstrem <- j
-                endif
-            endif
-            j <- j + 1
-        endwhile
-        
-        // Tukar elemen
-        temp <- daftarAktivitas[i]
-        daftarAktivitas[i] <- daftarAktivitas[indeksEkstrem]
-        daftarAktivitas[indeksEkstrem] <- temp
-        i <- i + 1
-    endwhile
-endprocedure
-
-procedure insertionSortFrekuensi(inout daftarAktivitas : array of Aktivitas, in jumlahAktivitas : integer, in ascending : boolean)
-{I.S. daftarAktivitas terdefinisi, jumlahAktivitas valid
-F.S. daftarAktivitas terurut berdasarkan Frekuensi secara ASCENDING/DESCENDING}
-kamus
-    i, j : integer
-    key : Aktivitas
-algoritma
-    i <- 1
-    while i < jumlahAktivitas do // Operator perbandingan '<'
-        key <- daftarAktivitas[i]
-        j <- i - 1
-        
-        if ascending then // Perbandingan boolean 'ascending'
-            while j >= 0 AND daftarAktivitas[j].Frekuensi > key.Frekuensi do // Operator perbandingan '>=' dan '>'
-                daftarAktivitas[j+1] <- daftarAktivitas[j] // Geser elemen ke kanan
-                j <- j - 1
-            endwhile
-        else // Descending
-            while j >= 0 AND daftarAktivitas[j].Frekuensi < key.Frekuensi do // Operator perbandingan '>=' dan '<'
-                daftarAktivitas[j+1] <- daftarAktivitas[j] // Geser elemen ke kanan
-                j <- j - 1
-            endwhile
-        endif
-        daftarAktivitas[j+1] <- key // Sisipkan key
-        i <- i + 1
-    endwhile
-endprocedure
-
-procedure laporanBulanan()
-{I.S. daftarAktivitas dan jumlahAktivitas terdefinisi
-F.S. Menampilkan laporan jejak karbon bulanan, aktivitas dampak ekstrem, skor, dan rekomendasi}
-kamus
-    totalJejakKarbon : real
-    aktivitasTerbanyakDampak : Aktivitas
-    aktivitasTerdikitDampak : Aktivitas
-    i : integer
-    a : Aktivitas
-    skor : real
-algoritma
-    if jumlahAktivitas == 0 then // Operator perbandingan '=='
-        output("Belum ada aktivitas untuk membuat laporan.")
-        return
-    endif
-
-    output("\n--- Laporan Bulanan Jejak Karbon ---")
-
-    aktivitasTerbanyakDampak.DampakKarbon <- -1.0 // Inisialisasi untuk memastikan update
-    aktivitasTerdikitDampak.DampakKarbon <- 999999999.0 // Inisialisasi untuk memastikan update
-    totalJejakKarbon <- 0.0
-
-    i <- 0
-    while i < jumlahAktivitas do // Operator perbandingan '<'
-        a <- daftarAktivitas[i]
-        totalJejakKarbon <- totalJejakKarbon + (a.DampakKarbon * konversi_ke_real(a.Frekuensi))
-
-        // Pencarian Nilai Ekstrim (Max/Min)
-        if a.DampakKarbon > aktivitasTerbanyakDampak.DampakKarbon then // Operator perbandingan '>'
-            aktivitasTerbanyakDampak <- a
-        endif
-        if a.DampakKarbon < aktivitasTerdikitDampak.DampakKarbon then // Operator perbandingan '<'
-            aktivitasTerdikitDampak <- a
-        endif
-        i <- i + 1
-    endwhile
-
-    output("Total Jejak Karbon Bulan Ini: ", totalJejakKarbon, " kg CO2e")
-    
-    if aktivitasTerbanyakDampak.DampakKarbon TIDAK SAMA DENGAN -1.0 then // Operator perbandingan 'TIDAK SAMA DENGAN'
-        output("Aktivitas dengan Dampak Karbon Terbesar: '", aktivitasTerbanyakDampak.Deskripsi, "' (", aktivitasTerbanyakDampak.DampakKarbon, " kg CO2e)")
-    endif
-    if aktivitasTerdikitDampak.DampakKarbon TIDAK SAMA DENGAN 999999999.0 then // Operator perbandingan 'TIDAK SAMA DENGAN'
-        output("Aktivitas dengan Dampak Karbon Terkecil: '", aktivitasTerdikitDampak.Deskripsi, "' (", aktivitasTerdikitDampak.DampakKarbon, " kg CO2e)")
-    endif
-
-    skor <- 100.0 - (totalJejakKarbon / 100.0) // Menggunakan 100.0 untuk hasil real
-    if skor < 0 then // Operator perbandingan '<'
-        skor <- 0
-    else if skor > 100 then // Operator perbandingan '>'
-        skor <- 100
-    endif
-    output("Skor Keberlanjutan Anda: ", skor, "/100")
-
-    output("\nRekomendasi untuk Mengurangi Jejak Karbon:")
-    if totalJejakKarbon > 500 then // Operator perbandingan '>'
-        output("- Pertimbangkan untuk mengurangi perjalanan menggunakan kendaraan pribadi.")
-        output("- Fokus pada makanan nabati dan lokal.")
-    else if totalJejakKarbon > 200 then // Operator perbandingan '>'
-        output("- Kurangi konsumsi listrik (matikan lampu yang tidak perlu, cabut charger).")
-        output("- Pilah sampah dengan lebih baik dan kurangi penggunaan plastik sekali pakai.")
-    else
-        output("- Terus pertahankan gaya hidup ramah lingkungan Anda!")
-        output("- Edukasi orang lain tentang pentingnya keberlanjutan.")
-    endif
-
-    output("\nSistem memberikan skor keberlanjutan berdasarkan pola hidup pengguna. Skor Anda dihitung dari total jejak karbon bulanan. Semakin rendah jejak karbon, semakin tinggi skornya.")
-endprocedure
